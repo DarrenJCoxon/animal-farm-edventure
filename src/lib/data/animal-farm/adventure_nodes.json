@@ -1,0 +1,88 @@
+[
+    {
+      "node_id": "node_0_start",
+      "title": "Arrival at Manor Farm",
+      "interaction_type": "button_choice",
+      "setting_description_prompt_hint": "You are a new animal arriving at Manor Farm. Describe the sights and sounds of a working farm, perhaps a bit run-down. Mention the farmer, Mr. Jones, might be visible somewhere, possibly looking unsteady or neglectful. Establish the player's perspective as an ordinary animal taking in the scene for the first time.",
+      "plot_relevance": "The very beginning, establishing the setting before the Rebellion.",
+      "characters_present": ["mr_jones"],
+      "pedagogical_focus": ["setting_establishment", "initial_conditions"],
+      "choices": [
+        {
+          "choice_id": "start_to_barn",
+          "text": "Look for the main barn.",
+          "next_node_id": "node_1_barn_approach",
+          "llm_outcome_hint": "Describe the character deciding to head towards the large barn, perhaps drawn by sounds or seeking shelter/company."
+        },
+        {
+          "choice_id": "start_observe_jones",
+          "text": "Watch Mr. Jones for a moment.",
+          "next_node_id": "node_2_jones_observation",
+          "character_focus": ["mr_jones"],
+          "llm_outcome_hint": "Describe the character observing Mr. Jones, focusing on actions that show his neglect or drunkenness, reinforcing why the animals might be unhappy."
+        }
+      ]
+    },
+    {
+      "node_id": "node_1_barn_approach",
+      "title": "Approaching the Barn",
+      "interaction_type": "button_choice",
+      "setting_description_prompt_hint": "Describe the character walking towards the large, imposing barn. Mention the sounds of various animals faintly heard from inside (shuffling, murmuring, maybe a cough or a sigh). Convey a sense of anticipation or slight unease. Perhaps hint that the animals inside seem subdued or resigned.",
+      "plot_relevance": "Moving towards the central location of animal life on the farm.",
+      "characters_present": [],
+      "pedagogical_focus": ["foreshadowing_discontent"],
+      "choices": [
+        {
+          "choice_id": "barn_enter",
+          "text": "Try to enter the barn quietly.",
+          "next_node_id": "node_3_barn_inside",
+          "llm_outcome_hint": "Describe finding a way into the barn (e.g., slipping through a gap in the door). The scene inside should be revealed in the *next* node's description hint."
+        },
+        {
+          "choice_id": "barn_listen",
+          "text": "Listen at the barn door.",
+          "next_node_id": "node_4_barn_eavesdrop",
+          "llm_outcome_hint": "Describe pressing close to the barn door, trying to make out distinct sounds or voices. Hint at hushed tones or perhaps a snippet of complaint, setting up the reveal in the *next* node."
+        }
+      ]
+    },
+    {
+      "node_id": "node_2_jones_observation",
+      "title": "Observing Mr. Jones",
+      "interaction_type": "button_choice",
+      "setting_description_prompt_hint": "Describe Mr. Jones stumbling across the yard, perhaps failing at a simple task (like locking a gate properly) or muttering to himself. Reinforce his inadequacy as a caretaker. Maybe show other animals nearby subtly reacting with fear or disdain.",
+      "plot_relevance": "Emphasizing the incompetence of the existing 'regime'.",
+      "characters_present": ["mr_jones"],
+      "pedagogical_focus": ["character_jones", "catalyst_for_rebellion"],
+      "choices": [
+        {
+          "choice_id": "jones_avoid",
+          "text": "Avoid Mr. Jones and head towards the barn.",
+          "next_node_id": "node_1_barn_approach",
+          "llm_outcome_hint": "Describe the character deciding Mr. Jones is best avoided and turning towards the relative safety or community of the barn."
+        },
+        {
+          "choice_id": "jones_find_food",
+          "text": "Seeing Jones is useless, look for some food or water.",
+          "next_node_id": "node_5_scavenging",
+          "llm_outcome_hint": "Describe the character, prompted by Jones's neglect, focusing on their own basic needs and starting to search for poorly maintained food troughs or water sources."
+        }
+      ]
+    },
+    {
+      "node_id": "node_4_barn_eavesdrop",
+      "title": "Listening at the Barn Door",
+      "interaction_type": "text_input",
+      "setting_description_prompt_hint": "You press closer to the rough wooden door. Describe hearing muffled voices clearly now - snippets of complaint about meagre rations, the cold, maybe a hushed, reverent mention of 'Old Major' and a meeting. The general feeling is one of shared hardship and quiet resentment.",
+      "question_prompt": "What do these whispers make you think or feel about life here at Manor Farm?",
+      "plot_relevance": "Gathering initial intelligence about animal sentiment.",
+      "pedagogical_focus": ["pre_rebellion_discontent", "foreshadowing"],
+      "choices": [
+        {
+          "choice_id": "eavesdrop_processed",
+          "text": "Process user's reflection (Internal)",
+          "next_node_id": "node_6_meeting_imminent"
+        }
+      ]
+    }
+  ]

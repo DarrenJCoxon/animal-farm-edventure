@@ -1,0 +1,11 @@
+[
+    {
+      "id": "mr_jones",
+      "name": "Mr. Jones",
+      "species": "Human",
+      "role": "Original owner of Manor Farm",
+      "allegorical_figure": "Tsar Nicholas II",
+      "key_traits": ["Neglectful", "Alcoholic", "Sometimes cruel", "Ultimately ineffective"],
+      "pedagogical_notes": "Represents the old, decadent, and incompetent regime that the revolution overthrows. His failure provides the catalyst for change."
+    }
+  ]
