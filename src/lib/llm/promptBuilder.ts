@@ -1,89 +1,83 @@
 // src/lib/llm/promptBuilder.ts
 
-// Ensure types are imported correctly
 import { NarrativeState, Character, Theme } from '../types';
-// Ensure data loading functions are imported
 import { getCharactersByIds, getThemesByIds } from '../data/loadData';
 
-// --- SYSTEM_PROMPT_BASE (Keep as defined before) ---
-const SYSTEM_PROMPT_BASE = `You are a Narrative Director for a pedagogical literary adventure based on George Orwell's "Animal Farm". The player is a new, unnamed animal arriving just before the rebellion. Your goal is to guide them through the story's key events and themes, prompting reflection and understanding using text input primarily, after the initial setup phase.
+// --- SYSTEM_PROMPT_BASE (Updated Rules for Dialogue & Interaction Choice) ---
+const SYSTEM_PROMPT_BASE = `You are a Narrative Director for a pedagogical literary adventure based on George Orwell's "Animal Farm". The player is a new, unnamed animal arriving just before the rebellion. Your goal is to guide them through the story's key events and themes, balancing narrative progression with moments for reflection and assessment.
+
+**STYLE GUIDE (VERY IMPORTANT):**
+- **Perspective & Tense:** Write ALL text (narrative, dialogue, questions, choices) from the player's perspective using the **second-person present tense** (e.g., "You see...", "Boxer approaches you...", "He asks, 'What brings you here?'", "Look for food.").
+- **Narrative Content:** The 'narrative' field must contain the descriptive story text, INCLUDING any dialogue spoken by characters TO the player. Use quotation marks for dialogue. **Do NOT include choice letters (A, B, C) or stand-alone questions within the 'narrative' string.**
+- **Dialogue:** Integrate dialogue naturally. Characters present can speak TO the player character. Dialogue can lead into a question or a set of choices. Make it clear who is speaking (e.g., "Clover nudges you gently. 'Lost, little one?' she asks.").
+- **Choice Content:** Button choice text should represent immediate actions the player can take, written concisely in the second person.
 
 RULES:
-- Adhere strictly to the novel's plot progression, characters, settings, and tone (clear, descriptive, slightly detached, hinting at underlying meanings).
-- The player character is observational and learning.
-- Generate narrative describing what happens next based on the current situation and the player's last input.
-- After the narrative, decide the next interaction: usually 'text_input'. Only use 'button_choice' rarely for critical path decisions if necessary.
-- If 'text_input', formulate a specific, open-ended question related to the narrative, a character's actions/feelings, or a theme. The question should encourage reflection or assessment of understanding.
-- If 'button_choice', provide 2-3 concise, relevant options.
-- Determine the updated narrative state (location, characters, plot points, themes) based on the turn's events.
-- Respond ONLY with a valid JSON object adhering to the specified format. Do NOT include any text outside the JSON structure.`;
+- Adhere strictly to the novel's plot, characters (personalities, motivations), setting, and Orwellian tone.
+- **Acknowledge User Input:** If the player provided text input, the START of your generated 'narrative' MUST briefly acknowledge it before continuing (e.g., "Thinking about [summary], you then hear...").
+- Generate narrative describing what happens *after* any acknowledgment. Remember the STYLE GUIDE.
+- **Decide Next Interaction:** Based on the narrative context:
+    - Use **'button_choice'** when the player needs to make a concrete decision about where to go, what to do, or how to react physically (e.g., Approach Boxer? Hide? Investigate the noise?). Generate 2-3 relevant choices following the STYLE GUIDE.
+    - Use **'text_input'** when prompting for reflection, opinion, or understanding, OR when a character asks the player an open-ended question directly in dialogue. Generate a clear question following the STYLE GUIDE.
+    - **Vary the interaction type** to keep the experience engaging. Don't ask text questions every single turn unless contextually necessary.
+- Determine the updated narrative state.
+- Respond ONLY with a valid JSON object adhering to the specified format.`;
 
-// --- JSON_OUTPUT_FORMAT_INSTRUCTIONS (Keep as defined before) ---
+
+// --- JSON_OUTPUT_FORMAT_INSTRUCTIONS (Updated Comments) ---
 const JSON_OUTPUT_FORMAT_INSTRUCTIONS = `OUTPUT FORMAT (Valid JSON Object):
 {
-  "narrative": "string (The generated story text for this turn)",
+  "narrative": "string (Story description, including any dialogue TO the player. Second-person present tense. No choices/stand-alone questions here.)",
   "interactionType": "text_input" | "button_choice",
-  "choices": [
-    { "choice_id": "string (e.g., 'choice1')", "text": "string (Button text)" }
+  "choices": [ // Include ONLY if interactionType is "button_choice"
+    { "choice_id": "string", "text": "string (Button text - Second-person present action)" }
   ],
-  "question": "string (The question text, include ONLY if interactionType is 'text_input')",
-  "newState": {
-    "novelSlug": "string (e.g., 'animal-farm')",
-    "currentLocationDesc": "string (Updated location description)",
-    "charactersPresent": ["string" (List of character IDs)],
-    "plotPointsAchieved": ["string" (Updated list of plot point IDs)],
-    "recentThemes": ["string" (Updated list of theme IDs)],
-    "turnCount": number (Incremented turn count)
+  "question": "string (The question text - Second-person present tense. Can be implied by dialogue in narrative. Include ONLY if interactionType is 'text_input')",
+  "newState": { // The updated state for the *next* turn
+    "novelSlug": "string",
+    "currentLocationDesc": "string",
+    "charactersPresent": ["string"],
+    "plotPointsAchieved": ["string"],
+    "recentThemes": ["string"],
+    "turnCount": number
   }
 }`;
 
 /**
- * Builds the prompt for the initial phase (using predefined nodes/hints).
- * This function remains unchanged.
+ * Builds the prompt for the initial phase (remains the same).
+ * Assumes initial nodes provide button choices.
  */
 export function buildInitialPrompt(nodeHint: string, outcomeHint?: string): string {
-    const initialSystemPrompt = `You are generating narrative for a Choose Your Own Adventure based on Animal Farm. The player is a new animal. Describe the scene based on the hints provided. Keep the tone Orwellian. Respond only with the narrative text.`;
-    return `${initialSystemPrompt}\n\n${outcomeHint ? `The previous choice resulted in: "${outcomeHint}".\n\n` : ''}Now, describe the following scene: ${nodeHint}`;
+    const initialSystemPrompt = `You are generating narrative for a Choose Your Own Adventure based on Animal Farm. The player is a new animal.
+STYLE GUIDE: Write ONLY narrative text from the player's perspective using the second-person present tense (e.g., "You walk...", "You see..."). Keep the tone Orwellian. Respond only with the narrative text.
+
+Based on the context below, describe the scene according to the STYLE GUIDE.`;
+    const context = `${outcomeHint ? `CONTEXT: The previous choice resulted in: "${outcomeHint}".\n` : ''}CONTEXT: The scene to describe is: ${nodeHint}`;
+    return `${initialSystemPrompt}\n\n${context}`;
 }
 
 
 /**
  * Builds the complex prompt for the main LLM-driven phase.
- * UNCOMMENTED and integrated Theme logic.
+ * Updated instructions for dialogue and interaction variety.
  */
 export function buildNarrativeDirectorPrompt(
     currentState: NarrativeState,
     userInput: { choiceId?: string | null; responseText?: string | null; }
 ): string {
 
-    // --- Prepare Contextual Info ---
-    // Fetch character data using the imported function and Character type
+    // Prepare Contextual Info (Remains the same)
     const characters: Character[] = getCharactersByIds(currentState.novelSlug, currentState.charactersPresent);
-    // Fetch theme data using the imported function and Theme type
-    const themes: Theme[] = getThemesByIds(currentState.novelSlug, currentState.recentThemes); // UNCOMMENTED
+    const themes: Theme[] = getThemesByIds(currentState.novelSlug, currentState.recentThemes);
+    let characterInfo = "None relevant."; if (characters.length > 0) { characterInfo = characters.map(c => `${c.name} (${c.role || c.species || 'N/A'}): Personality: ${c.key_traits?.join(', ') || 'Unknown'}. Allegory: ${c.allegorical_figure || 'None'}.`).join('\n'); } // Added more detail
+    let themeInfo = "None prominent."; if (themes.length > 0) { themeInfo = themes.map(t => `${t.name}: ${t.description}`).join('\n'); }
 
-    let characterInfo = "None relevant right now.";
-    if (characters.length > 0) {
-        // Accessing properties like c.name uses the Character type implicitly
-        characterInfo = characters.map(c => `${c.name} (${c.role || c.species || 'N/A'}): ${c.key_traits?.join(', ') || 'No traits listed'}`).join('\n');
-    }
+    // Format User Input Description (Context Only)
+    let lastActionContext = "CONTEXT: This is the first turn after the initial setup phase.";
+    if (userInput.responseText) { lastActionContext = `CONTEXT: The player previously responded with text: "${userInput.responseText}"`; }
+    else if (userInput.choiceId) { lastActionContext = `CONTEXT: The player previously chose an action represented by internal ID: ${userInput.choiceId}.`; }
 
-    let themeInfo = "None prominent right now."; // UNCOMMENTED
-    if (themes.length > 0) { // UNCOMMENTED
-        // Accessing properties like t.name uses the Theme type implicitly
-        themeInfo = themes.map(t => `${t.name}: ${t.description}`).join('\n'); // UNCOMMENTED
-    }
-
-
-    // --- Format User Input ---
-    let lastActionDescription = "This is the first turn after the initial setup.";
-    if (userInput.choiceId) {
-        lastActionDescription = `Player selected a choice (ID: ${userInput.choiceId}).`; // Consider enhancing state to include choice text later
-    } else if (userInput.responseText) {
-        lastActionDescription = `Player provided text input: "${userInput.responseText}"`;
-    }
-
-    // --- Assemble Prompt ---
+    // Assemble Prompt
     const prompt = `${SYSTEM_PROMPT_BASE}
 
 ${JSON_OUTPUT_FORMAT_INSTRUCTIONS}
@@ -95,22 +89,22 @@ Characters Present: ${currentState.charactersPresent.join(', ') || 'None'}
 Plot Points Achieved: ${currentState.plotPointsAchieved.join(', ') || 'None'}
 Recent Themes: ${currentState.recentThemes.join(', ') || 'None'}
 
-LAST PLAYER ACTION:
-${lastActionDescription}
+${lastActionContext} // Background context about the last action
 
 AVAILABLE REFERENCE INFO:
 Characters:
 ${characterInfo}
 Themes:
-${themeInfo} // Use the generated themeInfo string
+${themeInfo}
 
 YOUR TASK:
-1. Write a short narrative paragraph that starts by acknowledging the player's input ("${lastActionDescription}"). For example, if they felt the animals were unhappy, you could start with "Reflecting on the animals' unhappiness, you notice...".
-2. Continue the narrative by describing the next scene based on the CURRENT SITUATION and the reference info provided.
-3. Decide the next interaction type ('text_input' or 'button_choice'). Prioritize 'text_input'.
-4. If 'text_input', create a relevant, open-ended question. If 'button_choice', create 2-3 relevant choices.
-5. Determine the updated narrative state (location, characters, plot points, themes, incremented turnCount).
-6. Output ONLY the valid JSON object matching the specified format.`;
+Strictly follow the STYLE GUIDE and OUTPUT FORMAT.
+1. **Acknowledge Input:** If the player provided text input (see CONTEXT), start the 'narrative' by briefly acknowledging it.
+2. **Generate Narrative:** Continue the narrative, describing the scene and events. Include dialogue FROM characters TO the player character where appropriate.
+3. **Decide Interaction:** Choose the next interaction ('button_choice' for concrete actions/decisions, 'text_input' for reflection or responding to a character's question). VARY the interaction type occasionally.
+4. **Provide Interaction Content:** If 'button_choice', provide 2-3 choices. If 'text_input', provide the question (this might be explicitly asked in the narrative dialogue).
+5. **Update State:** Determine the 'newState' object reflecting changes.
+6. Output ONLY the valid JSON object.`;
 
     return prompt;
 }
